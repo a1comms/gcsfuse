@@ -50,22 +50,43 @@ import (
 // Helpers
 ////////////////////////////////////////////////////////////////////////
 
+func handleLazyUnmount(dir string) (err error) {
+	// Call fusermount.
+	cmd := exec.Command("fusermount", "-z", "-u", dir)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if len(output) > 0 {
+			output = bytes.TrimRight(output, "\n")
+			err = fmt.Errorf("%v: %s", err, output)
+		}
+
+		return
+	}
+
+	return
+}
+
 func registerSIGINTHandler(mountPoint string) {
-	// Register for SIGINT.
+	// Register for SIGINT & SIGTERM.
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
+	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT)
 
 	// Start a goroutine that will unmount when the signal is received.
 	go func() {
 		for {
-			<-signalChan
-			log.Println("Received SIGINT, attempting to unmount...")
+			s := <-signalChan
+			log.Printf("Received %s, attempting to unmount...", s)
 
 			err := fuse.Unmount(mountPoint)
 			if err != nil {
-				log.Printf("Failed to unmount in response to SIGINT: %v", err)
+				log.Printf("Failed to unmount in response to %s: %v", s, err)
+				log.Printf("Trying to lazy unmount, so we can exit and it can clean up later...")
+				err := handleLazyUnmount(mountPoint)
+				if err != nil {
+					log.Printf("Failed to lazy unmount in response to %s: %v", s, err)
+				}
 			} else {
-				log.Printf("Successfully unmounted in response to SIGINT.")
+				log.Printf("Successfully unmounted in response to %s.", s)
 				return
 			}
 		}
