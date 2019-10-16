@@ -70,8 +70,8 @@ func handleLazyUnmount(dir string) (err error) {
 
 func registerSIGINTHandler(mountPoint string) {
 	// Register for SIGINT & SIGTERM.
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT)
+	signalChan := make(chan os.Signal, 2)
+	signal.Notify(signalChan, syscall.SIGTERM, os.Interrupt)
 
 	// Start a goroutine that will unmount when the signal is received.
 	go func() {
