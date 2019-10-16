@@ -95,12 +95,20 @@ func build(
 			"-o", buildTool,
 		)
 
+		var goDir string
+		goDir, err = ioutil.TempDir("", "package_gcsfuse_git")
+		if err != nil {
+			err = fmt.Errorf("TempDir: %v", err)
+			return
+		}
+
+		defer os.RemoveAll(goDir)
+
 		cmd.Dir = path.Join(gitDir, "tools/build_gcsfuse")
 		cmd.Env = []string{
-			"GO15VENDOREXPERIMENT=1",
 			fmt.Sprintf("GOROOT=%s", runtime.GOROOT()),
 			fmt.Sprintf("GOCACHE=%s", gocache),
-			"GOPATH=/does/not/exist",
+			fmt.Sprintf("GOPATH=%s", goDir),
 		}
 
 		var output []byte
